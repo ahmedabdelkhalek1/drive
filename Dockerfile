@@ -19,13 +19,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \
 # Bench CLI
 RUN pip install --no-cache-dir frappe-bench
 
-# Non-root user and workspace
-RUN useradd -ms /bin/bash frappe
-USER frappe
-WORKDIR /home/frappe
+# Use a work dir that matches the web disk mount so bench persists
+WORKDIR /workspace
 
 # Init script
-COPY init.sh /home/frappe/init.sh
+COPY init.sh /usr/local/bin/init.sh
 EXPOSE 8000
 
-CMD ["bash", "-lc", "./init.sh"]
+CMD ["bash", "-lc", "/usr/local/bin/init.sh"]
