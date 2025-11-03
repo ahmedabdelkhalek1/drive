@@ -1,7 +1,7 @@
 services:
   - type: web
     name: drive-web
-    env: docker
+    runtime: docker
     plan: starter
     autoDeploy: true
     dockerfilePath: ./Dockerfile
@@ -25,6 +25,10 @@ services:
     ports:
       - port: 8000
         protocol: tcp
+    disks:
+      - name: bench
+        mountPath: /workspace
+        sizeGB: 5
 
   - type: pserv
     name: drive-mariadb
