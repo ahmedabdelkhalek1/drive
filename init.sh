@@ -8,38 +8,42 @@ set -e
 : "${REDIS_PORT:=6379}"
 : "${ADMIN_PASSWORD:=DriveAdmin!123}"
 
-if [ -d "/home/frappe/frappe-bench/apps/frappe" ]; then
+# Reuse existing bench if present (thanks to the persistent disk)
+if [ -d "/workspace/frappe-bench/apps/frappe" ]; then
   echo "Bench already exists, starting"
-  cd frappe-bench
+  cd /workspace/frappe-bench
   bench start
   exit 0
 fi
 
 # Initialize bench pinned to Frappe v15
-bench init --skip-redis-config-generation frappe-bench --version version-15
+bench init --skip-redis-config-generation /workspace/frappe-bench --version version-15
 
-cd frappe-bench
+cd /workspace/frappe-bench
 
-# Install Drive app
-bench get-app drive --branch main
+# Install Drive app (idempotent: if present, bench will skip)
+if [ ! -d "apps/drive" ]; then
+  bench get-app drive --branch main
+fi
 
-# Create site (uses MariaDB root password)
-bench new-site drive.localhost \
-  --force \
-  --mariadb-root-password "${MARIADB_ROOT_PASSWORD}" \
-  --admin-password "${ADMIN_PASSWORD}" \
-  --no-mariadb-socket
+# Point bench to Render’s services
+bench set-mariadb-host "${MARIADB_HOST}"
+bench set-redis-cache-host "${REDIS_HOST}:${REDIS_PORT}"
+bench set-redis-queue-host "${REDIS_HOST}:${REDIS_PORT}"
+bench set-redis-socketio-host "${REDIS_HOST}:${REDIS_PORT}"
 
-# Configure DB host and Redis endpoints via site/global config
-bench --site drive.localhost set-config db_host "${MARIADB_HOST}"
-bench set-config -g redis_cache "redis://${REDIS_HOST}:${REDIS_PORT}"
-bench set-config -g redis_queue "redis://${REDIS_HOST}:${REDIS_PORT}"
-bench set-config -g redis_socketio "redis://${REDIS_HOST}:${REDIS_PORT}"
+# Create site (demo credentials), then install Drive
+if [ ! -d "sites/drive.localhost" ]; then
+  bench new-site drive.localhost \
+    --force \
+    --mariadb-root-password "${MARIADB_ROOT_PASSWORD}" \
+    --admin-password "${ADMIN_PASSWORD}" \
+    --no-mariadb-socket
+  bench --site drive.localhost install-app drive
+fi
 
-# Install the Drive app into the site
-bench --site drive.localhost install-app drive
 bench --site drive.localhost clear-cache
 bench use drive.localhost
 
-# Start bench (serves on port 8000)
+# Start bench (serves on 0.0.0.0:8000)
 bench start
