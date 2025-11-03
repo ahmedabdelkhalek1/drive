@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: drive-web
+    env: docker
+    plan: starter
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: MARIADB_HOST
+        fromService:
+          type: pserv
+          name: drive-mariadb
+          property: host
+      - key: MARIADB_ROOT_PASSWORD
+        value: "DriveDBRoot!123"
+      - key: REDIS_HOST
+        fromService:
+          type: pserv
+          name: drive-redis
+          property: host
+      - key: REDIS_PORT
+        value: "6379"
+      - key: ADMIN_PASSWORD
+        value: "DriveAdmin!123"
+    ports:
+      - port: 8000
+        protocol: tcp
+
+  - type: pserv
+    name: drive-mariadb
+    image: mariadb:10.11
+    envVars:
+      - key: MARIADB_ROOT_PASSWORD
+        value: "DriveDBRoot!123"
+    disks:
+      - name: data
+        mountPath: /var/lib/mysql
+        sizeGB: 10
+    ports:
+      - port: 3306
+        protocol: tcp
+
+  - type: pserv
+    name: drive-redis
+    image: redis:7
+    ports:
+      - port: 6379
+        protocol: tcp
